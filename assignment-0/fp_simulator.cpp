@@ -12,6 +12,8 @@ using namespace std;
 
 int CURRENT_CYCLE = 0;
 
+bool DEBUG = true;
+
 class ProcessorInstruction{
     public:
         string unit, opd, ops1, ops2;
@@ -71,6 +73,26 @@ class ProcessorInstruction{
             fp <<"}"<<endl;
         }
 
+
+        int get_register_opd(){
+            return stoi(opd.substr(1));
+        }
+
+        int get_register_ops1(){
+            if (ops1[0] == 'R')
+                return stoi(ops1.substr(1));
+            else
+                return -1;
+            
+        }
+
+        int get_register_ops2(){
+            if (ops2[0] == 'R')
+                return stoi(ops2.substr(1));
+            else
+                return -1;
+        }
+
 };
 
 
@@ -81,6 +103,11 @@ class Register{
         float value_sp;
         double value_dp;
 
+        Register(){
+            value_sp = 0;
+            value_dp = 0;
+        }
+
 };
 
 
@@ -88,6 +115,8 @@ class RegisterResourceManager{
     public:
 
         array<Register, 32> RegisterFile;
+
+        bool register_write_lock[32] = {};
 
         void write_to(int rnum, double val){
 
@@ -98,6 +127,24 @@ class RegisterResourceManager{
 
             return RegisterFile[rnum].value_dp;
 
+        }
+
+
+        void write_lock(int reg_num){
+            if (DEBUG) cout <<"\n[DEBUG] Locking Register R" << reg_num;
+            register_write_lock[reg_num - 1] = true;
+        }
+
+        void write_unlock(int reg_num){
+            if (DEBUG) cout <<"\n[DEBUG] Unlocking Register R" << reg_num;
+            register_write_lock[reg_num - 1] = false;
+        }
+
+        bool check_write_lock(int reg_num){
+            if (reg_num >=1 && reg_num <=32)
+                return  register_write_lock[reg_num - 1];
+            else
+                return false;
         }
 
 };
@@ -173,17 +220,20 @@ class PipelineUnit{
 
 
         void debug_print(){
-            cout<<"\n[DEBUG]CURRENT_CYCLE " << CURRENT_CYCLE << flush;
-            cout<<" name " << name << flush;
-            cout<<" isEmpty " << isEmpty << flush;
-            if (instruction == NULL)
-                cout<<" instruction NULL" << flush;
-            else
-                cout<<" instruction " << (*instruction).unit << flush;
-            
-            if (name == "START")
-                cout<<" processing_cycles_left " << processing_cycles_left << flush;
+            if (DEBUG){
+                cout<<"\n[DEBUG]CURRENT_CYCLE " << CURRENT_CYCLE << flush;
+                cout<<" name " << name << flush;
+                cout<<" isEmpty " << isEmpty << flush;
+                if (instruction == NULL)
+                    cout<<" instruction NULL" << flush;
+                else
+                    cout<<" instruction " << (*instruction).unit << flush;
+                
+                if (name == "START")
+                    cout<<" processing_cycles_left " << processing_cycles_left << flush;
 
+        
+            }
         }
 };
 
@@ -191,7 +241,7 @@ class PipelineUnit{
 
 int main(int argc, char * argv[]){
 
-    cout << "\n[DEBUG]Started Program"<<flush;
+    if (DEBUG) cout << "\n[DEBUG]Started Program"<<flush;
 
     if ( argc != 3 ){
         cerr<<"Usage : ./fp_simulator <input_trace> <output_csv>";
@@ -205,6 +255,7 @@ int main(int argc, char * argv[]){
 
 
     queue<ProcessorInstruction *> instructionQueue;
+    RegisterResourceManager rrm;
 
     PipelineUnit IssueUnit("ISSUE");
     PipelineUnit StartUnit("START");
@@ -217,7 +268,7 @@ int main(int argc, char * argv[]){
     int index = 0;
 
 
-    cout<<"\n[DEBUG] Started Reading input trace file" <<flush;
+    if (DEBUG) cout<<"\n[DEBUG] Started Reading input trace file" <<flush;
 
     while(getline(infile, input_line)){
         
@@ -260,8 +311,8 @@ int main(int argc, char * argv[]){
        // cout<<"\nend\n";
         
     }
-    cout<<"\n[DEBUG]Queue end" <<flush;
-    cout<<"\n[DEBUG] Instruction Queue size is " <<  instructionQueue.size() << flush;
+    if (DEBUG) cout<<"\n[DEBUG]Queue end" <<flush;
+    if (DEBUG) cout<<"\n[DEBUG] Instruction Queue size is " <<  instructionQueue.size() << flush;
             
 
     infile.close();
@@ -285,11 +336,9 @@ int main(int argc, char * argv[]){
     CURRENT_CYCLE = 0;
     
 
-    cout<<"\n[DEBUG]Started Sending Instructions to pipeline" <<flush;
+    if (DEBUG) cout<<"\n[DEBUG]Started Sending Instructions to pipeline" <<flush;
 
     IssueUnit.debug_print(); StartUnit.debug_print(); CompleteUnit.debug_print();  WritebackUnit.debug_print();
-    cout <<"\n[DEBUG] -----------------------------------------";
-    cout <<"\n[DEBUG] -----------------------------------------";
 
     while(!instructionQueue.empty() || (!WritebackUnit.isEmpty || !CompleteUnit.isEmpty || !StartUnit.isEmpty || !IssueUnit.isEmpty)){
 
@@ -308,6 +357,8 @@ int main(int argc, char * argv[]){
         if(!CompleteUnit.isEmpty && WritebackUnit.isEmpty){
             WritebackUnit.add_instruction(CompleteUnit.instruction);
             CompleteUnit.remove_instruction();
+
+            rrm.write_unlock((*WritebackUnit.instruction).get_register_opd());
         }
 
         //IssueUnit.debug_print(); StartUnit.debug_print(); CompleteUnit.debug_print();  WritebackUnit.debug_print();
@@ -330,8 +381,17 @@ int main(int argc, char * argv[]){
         if(!IssueUnit.isEmpty && StartUnit.isEmpty){
             // Check for datahazards ****
 
-            StartUnit.add_instruction(IssueUnit.instruction);
-            IssueUnit.remove_instruction();
+            // Checking for write locak on source operands which need to be read(RAW hazard)
+            if ( !(rrm.check_write_lock((*IssueUnit.instruction).get_register_ops1())) && !(rrm.check_write_lock((*IssueUnit.instruction).get_register_ops2())) ){
+    
+                StartUnit.add_instruction(IssueUnit.instruction);
+                IssueUnit.remove_instruction();
+
+                rrm.write_lock((*StartUnit.instruction).get_register_opd());
+
+            }
+
+
         }
 
         //IssueUnit.debug_print(); StartUnit.debug_print(); CompleteUnit.debug_print();  WritebackUnit.debug_print();
@@ -346,8 +406,8 @@ int main(int argc, char * argv[]){
         }
 
         IssueUnit.debug_print(); StartUnit.debug_print(); CompleteUnit.debug_print();  WritebackUnit.debug_print();
-        cout <<"\n[DEBUG] -----------------------------------------";
-        cout <<"\n[DEBUG] -----------------------------------------";
+        if (DEBUG) cout <<"\n[DEBUG] -----------------------------------------";
+
         
         CURRENT_CYCLE += 1;
 
