@@ -32,6 +32,12 @@ class ProcessorInstruction{
             ops1 = inst_ops1;
             ops2 = inst_ops2;
 
+            calculate_result();
+
+        }
+
+        void calculate_result(){
+
         }
 
 
