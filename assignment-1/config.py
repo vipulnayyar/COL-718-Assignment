@@ -1,5 +1,7 @@
 from gem5.components.boards.simple_board import SimpleBoard
 from gem5.components.cachehierarchies.classic.no_cache import NoCache
+from gem5.components.cachehierarchies.classic.private_l1_private_l2_cache_hierarchy import PrivateL1PrivateL2CacheHierarchy
+from gem5.components.cachehierarchies.ruby.mesi_two_level_cache_hierarchy import MESITwoLevelCacheHierarchy
 from gem5.components.memory.single_channel import SingleChannelDDR3_1600, SingleChannelDDR3_2133, SingleChannelLPDDR3_1600, SingleChannelDDR4_2400, DIMM_DDR5_4400, DIMM_DDR5_6400, DIMM_DDR5_8400
 
 from gem5.components.memory.multi_channel import DualChannelDDR3_1600, DualChannelDDR3_2133, DualChannelDDR4_2400, DualChannelLPDDR3_1600
@@ -35,7 +37,9 @@ isa_mapping = {
     'SPARC' : ISA.SPARC
 }
 
-cache_hierarchy = NoCache()
+#cache_hierarchy = NoCache()
+cache_hierarchy = PrivateL1PrivateL2CacheHierarchy(l1d_size="16KiB", l1i_size="16KiB",l2_size="256KiB")
+#cache_hierarchy = MESITwoLevelCacheHierarchy(   l1d_size="16KiB",l1d_assoc=8,l1i_size="16KiB"l1i_assoc=8, l2_size="256KiB", l2_assoc=16, num_l2_banks=1)
 
 memory_mapping ={
     "SINGLE_CHANNEL_DDR3_1600" : SingleChannelDDR3_1600,

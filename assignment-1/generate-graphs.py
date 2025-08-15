@@ -13,6 +13,8 @@ y_axis_freq_wise_metric = {}
 
 DATA = []
 
+RESULTS_DIR = "benchmark_results"
+
 def fill_data(results_dir):
     with open(results_dir+"/combined_results.csv", 'r') as csv_file:
         entries = csv.DictReader(csv_file,delimiter=',')
@@ -51,11 +53,11 @@ def generate_graph_cputypes_vs_perf(metric):
     pyplot.grid()
     pyplot.legend()
 
-    pyplot.savefig("cputypes_vs_perf_"+metric+".png")
+    pyplot.savefig(RESULTS_DIR+"/plots/cputypes_vs_perf_"+metric+".png")
     #pyplot.show()   
 
         
 
-fill_data("benchmark_results")
+fill_data(RESULTS_DIR)
 generate_graph_cputypes_vs_perf('SIMSECONDS')
 generate_graph_cputypes_vs_perf('CPI')
