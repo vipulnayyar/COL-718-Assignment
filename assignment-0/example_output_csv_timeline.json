@@ -1,0 +1,21 @@
+[
+{
+"index": 0,
+"instr": "FADD.S R1 R2 R3",
+"issue": 0,
+"start": 1,
+"complete": 3,
+"writeback": 4,
+"unit": "FADD.S"
+}
+{
+"index": 1,
+"instr": "FMUL.S R4 R1 R5",
+"issue": 1,
+"start": 4,
+"complete": 7,
+"writeback": 8,
+"unit": "FMUL.S"
+}
+
+]
