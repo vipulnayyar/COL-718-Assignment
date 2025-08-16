@@ -14,6 +14,8 @@ DATA = []
 
 RESULTS_DIR = "benchmark_results"
 
+figure_count = 1
+
 def fill_data(results_dir):
     with open(results_dir+"/combined_results.csv", 'r') as csv_file:
         entries = csv.DictReader(csv_file,delimiter=',')
@@ -22,274 +24,122 @@ def fill_data(results_dir):
             DATA.append(entry)
 
 ###########################
-def generate_graph_cputypes_vs_perf_fixed_memory_diff_freq(metric):
+
+def generate_graph_generic(count, x_axis, x_axis_field, perf_metric, variant_field, invariant_field, invariant_value, jitter_value):
+
+    """
+    print(x_axis_field)
+    print(perf_metric)
+    print(variant_field)
+    print(invariant_field, invariant_value) """
+
+    global figure_count
 
     pyplot.figure(constrained_layout=True)
-    y_axis_freq_wise_metric = {}
+    y_axis = {}
 
+    jitter = 0
     for entry in DATA:
-        if entry['MEMORYMODEL'] != "SINGLE_CHANNEL_DDR3_1600":
+       
+        if entry[invariant_field] != invariant_value:
             continue
 
+        #print(entry)
 
-        if entry['CPUFREQUENCY'] not in y_axis_freq_wise_metric:
-            y_axis_freq_wise_metric[entry['CPUFREQUENCY']] = [0] * len(x_axis_cpu_types)
+        if entry[variant_field] not in y_axis:
+            y_axis[entry[variant_field]] = [0] * len(x_axis)
 
-        if metric == 'SIMSECONDS':
-            y_axis_freq_wise_metric[entry['CPUFREQUENCY']][x_axis_cpu_types.index(entry['CPUTYPE'])] = float(entry[metric]) * 1000
-        elif metric == 'CPI':
-            y_axis_freq_wise_metric[entry['CPUFREQUENCY']][x_axis_cpu_types.index(entry['CPUTYPE'])] = float(entry[metric])
+        if perf_metric == 'SIMSECONDS':
+            y_axis[entry[variant_field]][x_axis.index(entry[x_axis_field])] = float(entry[perf_metric]) * 1000
+            
+            y_axis[entry[variant_field]][x_axis.index(entry[x_axis_field])] += jitter * jitter_value
 
-    print(x_axis_cpu_types)
-    print(y_axis_freq_wise_metric)
+        elif perf_metric == 'CPI':
+            y_axis[entry[variant_field]][x_axis.index(entry[x_axis_field])] = float(entry[perf_metric])
 
-    for freq, metric_entries  in y_axis_freq_wise_metric.items():
-        pyplot.plot(x_axis_cpu_types, metric_entries, marker = 'o', label=freq)
+            y_axis[entry[variant_field]][x_axis.index(entry[x_axis_field])] += jitter * jitter_value
 
-    pyplot.xlabel('CPU Types')
+        jitter += 1
 
-    if metric == 'SIMSECONDS':
+
+    print(x_axis)
+    print(y_axis)
+
+    
+    for freq, metric_entries  in y_axis.items():
+        pyplot.plot(x_axis, metric_entries, marker = 'o', label=freq)
+
+    pyplot.xlabel(x_axis_field)
+    if x_axis_field == 'CPUFREQUENCY':
+        pyplot.xticks(rotation=60)
+    elif x_axis_field == 'MEMORYMODEL':
+        pyplot.xticks(rotation=80)
+
+    if perf_metric == 'SIMSECONDS':
         pyplot.ylabel('Execution Time(ms)')
-    elif metric == 'CPI':
+    elif perf_metric == 'CPI':
         pyplot.ylabel('CPI')
         
-    pyplot.title(' CPUTypes vs '+metric+' for different frequencies(SINGLE_CHANNEL_DDR3_1600)')
     pyplot.grid()
     pyplot.legend(loc="center left", bbox_to_anchor=(1,0.5))
+    
+    description = 'Figure '+ str(figure_count) + ': '+x_axis_field +' vs '+perf_metric+' for different frequencies(SINGLE_CHANNEL_DDR3_1600).'
+
+    if jitter_value > 0 :
+        description += ' Added jitter(' + str(jitter_value) +') to show overlapping line graphs.'
+
+    figure_count += 1
+
+    pyplot.figtext(0.1, 0.02, description, fontsize=10, ha='left', va='bottom', wrap=True)
+
     pyplot.tight_layout()
 
-    pyplot.savefig(RESULTS_DIR+"/plots/cputypes_vs_"+metric+"_fixed_memory_model_diff_freq.png")
-
-def generate_graph_cputypes_vs_perf_fixed_freq_diff_memory(metric):
-
-    pyplot.figure(constrained_layout=True)
-    y_axis_memory_wise_metric = {}
-
-    for entry in DATA:
-        if entry['CPUFREQUENCY'] != "3.3GHz":
-            continue
-
-
-        if entry['MEMORYMODEL'] not in y_axis_memory_wise_metric:
-            y_axis_memory_wise_metric[entry['MEMORYMODEL']] = [0] * len(x_axis_cpu_types)
-
-        if metric == 'SIMSECONDS':
-            y_axis_memory_wise_metric[entry['MEMORYMODEL']][x_axis_cpu_types.index(entry['CPUTYPE'])] = float(entry[metric]) * 1000
-        elif metric == 'CPI':
-            y_axis_memory_wise_metric[entry['MEMORYMODEL']][x_axis_cpu_types.index(entry['CPUTYPE'])] = float(entry[metric])
-
-    print(x_axis_cpu_types)
-    print(y_axis_memory_wise_metric)
-
-    for memory, metric_entries  in y_axis_memory_wise_metric.items():
-        pyplot.plot(x_axis_cpu_types, metric_entries, marker = 'o', label=memory)
-
-    pyplot.xlabel('CPU Types')
-
-    if metric == 'SIMSECONDS':
-        pyplot.ylabel('Execution Time(ms)')
-    elif metric == 'CPI':
-        pyplot.ylabel('CPI')
-        
-    pyplot.title('  CPUTypes vs '+metric+' for different Memory Models(3.3GHz)')
-    pyplot.grid()
-    pyplot.legend(loc="center left", bbox_to_anchor=(1,0.5))
-    pyplot.tight_layout()
-
-    pyplot.savefig(RESULTS_DIR+"/plots/cputypes_vs_"+metric+"_fixed_freq_diff_memory_model.png")
-
-###########################
-
-def generate_graph_freq_vs_perf_fixed_memory_diff_cpu(metric):
-
-    pyplot.figure(constrained_layout=True)
-    y_axis_cpu_wise_metric = {}
-
-    for entry in DATA:
-        if entry['MEMORYMODEL'] != "SINGLE_CHANNEL_DDR3_1600":
-            continue
-
-
-        if entry['CPUTYPE'] not in y_axis_cpu_wise_metric:
-            y_axis_cpu_wise_metric[entry['CPUTYPE']] = [0] * len(x_axis_cpu_freq_types)
-
-        if metric == 'SIMSECONDS':
-            y_axis_cpu_wise_metric[entry['CPUTYPE']][x_axis_cpu_freq_types.index(entry['CPUFREQUENCY'])] = float(entry[metric]) * 1000
-        elif metric == 'CPI':
-            y_axis_cpu_wise_metric[entry['CPUTYPE']][x_axis_cpu_freq_types.index(entry['CPUFREQUENCY'])] = float(entry[metric])
-
-    print(x_axis_cpu_freq_types)
-    print(y_axis_cpu_wise_metric)
-
-    for cpu, metric_entries  in y_axis_cpu_wise_metric.items():
-        pyplot.plot(x_axis_cpu_freq_types, metric_entries, marker = 'o', label=cpu)
-
-    pyplot.xlabel('CPU Types')
-
-    if metric == 'SIMSECONDS':
-        pyplot.ylabel('Execution Time(ms)')
-    elif metric == 'CPI':
-        pyplot.ylabel('CPI')
-        
-    pyplot.title(' CPU Frequency vs '+metric+' for different CPU Types(SINGLE_CHANNEL_DDR3_1600)')
-    pyplot.grid()
-    pyplot.legend(loc="center left", bbox_to_anchor=(1,0.5))
-    pyplot.xticks(rotation=45)
-    pyplot.tight_layout()
-
-    pyplot.savefig(RESULTS_DIR+"/plots/freq_vs_"+metric+"_fixed_memory_diff_cpu.png")
-
-
-def generate_graph_freq_vs_perf_fixed_cpu_diff_memory(metric):
-
-    pyplot.figure(constrained_layout=True)
-    y_axis_memory_wise_metric = {}
-
-    for entry in DATA:
-        if entry['CPUTYPE'] != "TIMING":
-            continue
-
-
-        if entry['MEMORYMODEL'] not in y_axis_memory_wise_metric:
-            y_axis_memory_wise_metric[entry['MEMORYMODEL']] = [0] * len(x_axis_cpu_freq_types)
-
-        if metric == 'SIMSECONDS':
-            y_axis_memory_wise_metric[entry['MEMORYMODEL']][x_axis_cpu_freq_types.index(entry['CPUFREQUENCY'])] = float(entry[metric]) * 1000
-        elif metric == 'CPI':
-            y_axis_memory_wise_metric[entry['MEMORYMODEL']][x_axis_cpu_freq_types.index(entry['CPUFREQUENCY'])] = float(entry[metric])
-
-    print(x_axis_cpu_freq_types)
-    print(y_axis_memory_wise_metric)
-
-    for cpu, metric_entries  in y_axis_memory_wise_metric.items():
-        pyplot.plot(x_axis_cpu_freq_types, metric_entries, marker = 'o', label=cpu)
-
-    pyplot.xlabel('CPU Types')
-
-    if metric == 'SIMSECONDS':
-        pyplot.ylabel('Execution Time(ms)')
-    elif metric == 'CPI':
-        pyplot.ylabel('CPI')
-        
-    pyplot.title(' CPU Frequency vs '+metric+' for different Memory Model(TIMING CPU)')
-    pyplot.grid()
-    pyplot.legend(loc="center left", bbox_to_anchor=(1,0.5))
-    pyplot.xticks(rotation=45)
-    pyplot.tight_layout()
-
-    pyplot.savefig(RESULTS_DIR+"/plots/freq_vs_"+metric+"_fixed_cpu_diff_memory.png")
-
+    if x_axis_field == 'MEMORYMODEL':
+        pyplot.subplots_adjust(bottom=0.7)
+    elif x_axis_field == 'CPUTYPE':
+        pyplot.subplots_adjust(bottom=0.2)
+    else:
+        pyplot.subplots_adjust(bottom=0.3)
+    
+    pyplot.savefig(RESULTS_DIR+"/plots/"+x_axis_field+"_vs_"+perf_metric+"_fixed_" + invariant_field + "_diff_"+ variant_field +".png")
 
 ##########################
 
-def generate_graph_memory_vs_perf_fixed_freq_diff_cpu(metric):
-
-    pyplot.figure(constrained_layout=True)
-    y_axis_cpu_wise_metric = {}
-
-    for entry in DATA:
-        if entry['CPUFREQUENCY'] != "3.3GHz":
-            continue
-
-
-        if entry['CPUTYPE'] not in y_axis_cpu_wise_metric:
-            y_axis_cpu_wise_metric[entry['CPUTYPE']] = [0] * len(x_axis_memory_model_types)
-
-        if metric == 'SIMSECONDS':
-            y_axis_cpu_wise_metric[entry['CPUTYPE']][x_axis_memory_model_types.index(entry['MEMORYMODEL'])] = float(entry[metric]) * 1000
-        elif metric == 'CPI':
-            y_axis_cpu_wise_metric[entry['CPUTYPE']][x_axis_memory_model_types.index(entry['MEMORYMODEL'])] = float(entry[metric])
-
-    print(x_axis_memory_model_types)
-    print(y_axis_cpu_wise_metric)
-
-    for memory, metric_entries  in y_axis_cpu_wise_metric.items():
-        pyplot.plot(x_axis_memory_model_types, metric_entries, marker = 'o', label=memory)
-
-    pyplot.xlabel('Memory Models')
-
-    if metric == 'SIMSECONDS':
-        pyplot.ylabel('Execution Time(ms)')
-    elif metric == 'CPI':
-        pyplot.ylabel('CPI')
-        
-    pyplot.title(' Memory Models vs '+metric+' for different CPU Types(3.3GHz)')
-    pyplot.grid()
-    pyplot.legend(loc="center left", bbox_to_anchor=(1,0.5))
-    pyplot.xticks(rotation=45)
-    pyplot.tight_layout()
-
-    pyplot.savefig(RESULTS_DIR+"/plots/memory_vs_"+metric+"_fixed_freq_diff_cpu.png")
-
-def generate_graph_memory_vs_perf_fixed_cpu_diff_freq(metric):
-
-    pyplot.figure(constrained_layout=True)
-    y_axis_freq_wise_metric = {}
-
-    for entry in DATA:
-        if entry['CPUTYPE'] != "TIMING":
-            continue
-
-
-        if entry['CPUFREQUENCY'] not in y_axis_freq_wise_metric:
-            y_axis_freq_wise_metric[entry['CPUFREQUENCY']] = [0] * len(x_axis_memory_model_types)
-
-        if metric == 'SIMSECONDS':
-            y_axis_freq_wise_metric[entry['CPUFREQUENCY']][x_axis_memory_model_types.index(entry['MEMORYMODEL'])] = float(entry[metric]) * 1000
-        elif metric == 'CPI':
-            y_axis_freq_wise_metric[entry['CPUFREQUENCY']][x_axis_memory_model_types.index(entry['MEMORYMODEL'])] = float(entry[metric])
-
-    print(x_axis_memory_model_types)
-    print(y_axis_freq_wise_metric)
-
-    for freq, metric_entries  in y_axis_freq_wise_metric.items():
-        pyplot.plot(x_axis_memory_model_types, metric_entries, marker = 'o', label=freq)
-
-    pyplot.xlabel('Memory Models')
-
-    if metric == 'SIMSECONDS':
-        pyplot.ylabel('Execution Time(ms)')
-    elif metric == 'CPI':
-        pyplot.ylabel('CPI')
-        
-    pyplot.title(' Memory Models vs '+metric+' for different CPU Types(3.3GHz)')
-    pyplot.grid()
-    pyplot.legend(loc="center left", bbox_to_anchor=(1,0.5))
-    pyplot.xticks(rotation=45)
-    pyplot.tight_layout()
-
-    pyplot.savefig(RESULTS_DIR+"/plots/memory_vs_"+metric+"_fixed_cpu_diff_freq.png")
-
-
-##########################
 fill_data(RESULTS_DIR)
 
 ##########################
 
-generate_graph_cputypes_vs_perf_fixed_memory_diff_freq('SIMSECONDS')
-generate_graph_cputypes_vs_perf_fixed_memory_diff_freq('CPI')
 
-generate_graph_cputypes_vs_perf_fixed_freq_diff_memory('SIMSECONDS')
-generate_graph_cputypes_vs_perf_fixed_freq_diff_memory('CPI')
+generate_graph_generic(figure_count, x_axis_cpu_types, 'CPUTYPE', 'SIMSECONDS', 'CPUFREQUENCY', 'MEMORYMODEL', 'SINGLE_CHANNEL_DDR3_1600',0)
 
-#########################
+generate_graph_generic(figure_count, x_axis_cpu_types, 'CPUTYPE', 'CPI', 'CPUFREQUENCY', 'MEMORYMODEL', 'SINGLE_CHANNEL_DDR3_1600',0.005)
 
 
-generate_graph_freq_vs_perf_fixed_memory_diff_cpu('SIMSECONDS')
-generate_graph_freq_vs_perf_fixed_memory_diff_cpu('CPI')
+generate_graph_generic(figure_count, x_axis_cpu_types, 'CPUTYPE', 'SIMSECONDS', 'MEMORYMODEL', 'CPUFREQUENCY', '3.3GHz',0.1)
 
-generate_graph_freq_vs_perf_fixed_cpu_diff_memory('SIMSECONDS')
-generate_graph_freq_vs_perf_fixed_cpu_diff_memory('CPI')
+
+
+generate_graph_generic(figure_count, x_axis_cpu_types, 'CPUTYPE', 'CPI', 'MEMORYMODEL', 'CPUFREQUENCY', '3.3GHz',0.005)
 
 #########################
 
-generate_graph_memory_vs_perf_fixed_freq_diff_cpu('SIMSECONDS')
-generate_graph_memory_vs_perf_fixed_freq_diff_cpu('CPI')
+generate_graph_generic(figure_count, x_axis_cpu_freq_types, 'CPUFREQUENCY', 'SIMSECONDS', 'CPUTYPE', 'MEMORYMODEL', 'SINGLE_CHANNEL_DDR3_1600',0)
 
-generate_graph_memory_vs_perf_fixed_cpu_diff_freq('SIMSECONDS')
-generate_graph_memory_vs_perf_fixed_cpu_diff_freq('CPI')
+generate_graph_generic(figure_count, x_axis_cpu_freq_types, 'CPUFREQUENCY', 'CPI', 'CPUTYPE', 'MEMORYMODEL', 'SINGLE_CHANNEL_DDR3_1600',0)
 
 
+generate_graph_generic(figure_count, x_axis_cpu_freq_types, 'CPUFREQUENCY', 'SIMSECONDS', 'MEMORYMODEL', 'CPUTYPE', 'TIMING', 0.5)
+
+generate_graph_generic(figure_count, x_axis_cpu_freq_types, 'CPUFREQUENCY', 'CPI', 'MEMORYMODEL', 'CPUTYPE', 'TIMING', 0)
 
 
+#########################
 
+generate_graph_generic(figure_count, x_axis_memory_model_types, 'MEMORYMODEL', 'SIMSECONDS', 'CPUTYPE', 'CPUFREQUENCY', '3.3GHz', 0)
+
+generate_graph_generic(figure_count, x_axis_memory_model_types, 'MEMORYMODEL', 'CPI', 'CPUTYPE', 'CPUFREQUENCY', '3.3GHz', 0)
+
+
+generate_graph_generic(figure_count, x_axis_memory_model_types, 'MEMORYMODEL', 'SIMSECONDS', 'CPUFREQUENCY', 'CPUTYPE', 'TIMING', 0)
+
+generate_graph_generic(figure_count, x_axis_memory_model_types, 'MEMORYMODEL', 'CPI', 'CPUFREQUENCY', 'CPUTYPE', 'TIMING',0)
