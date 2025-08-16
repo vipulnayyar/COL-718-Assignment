@@ -27,43 +27,60 @@ def fill_data(results_dir):
 
 def generate_graph_generic(count, x_axis, x_axis_field, perf_metric, variant_field, invariant_field, invariant_value, jitter_value):
 
-    """
+    print(x_axis)
     print(x_axis_field)
     print(perf_metric)
     print(variant_field)
-    print(invariant_field, invariant_value) """
+    print(invariant_field, invariant_value)
+    print(jitter_value)
 
     global figure_count
+
+    print("\n\n\n\n " + str(figure_count) + "\n\n")
 
     pyplot.figure(constrained_layout=True)
     y_axis = {}
 
-    jitter = 0
+
+    flag = 0
     for entry in DATA:
        
         if entry[invariant_field] != invariant_value:
             continue
 
+        if flag == 0:
+            row = ""
+            for key in entry.keys():
+                row += str(key) +","
+            #print(row)
+            flag=1
+        
+        row = ""
+        for val in entry.values():
+            row += str(val) +","
+        #print(row)
         #print(entry)
 
         if entry[variant_field] not in y_axis:
             y_axis[entry[variant_field]] = [0] * len(x_axis)
 
+        
+        #print(y_axis[entry[variant_field]])
+
         if perf_metric == 'SIMSECONDS':
-            y_axis[entry[variant_field]][x_axis.index(entry[x_axis_field])] = float(entry[perf_metric]) * 1000
+            y_axis[entry[variant_field]][x_axis.index(entry[x_axis_field])] = float(entry[perf_metric]) *1000
             
-            y_axis[entry[variant_field]][x_axis.index(entry[x_axis_field])] += jitter * jitter_value
+            y_axis[entry[variant_field]][x_axis.index(entry[x_axis_field])] += list(y_axis).index(entry[variant_field]) * jitter_value
 
         elif perf_metric == 'CPI':
             y_axis[entry[variant_field]][x_axis.index(entry[x_axis_field])] = float(entry[perf_metric])
 
-            y_axis[entry[variant_field]][x_axis.index(entry[x_axis_field])] += jitter * jitter_value
-
-        jitter += 1
+            y_axis[entry[variant_field]][x_axis.index(entry[x_axis_field])] += list(y_axis).index(entry[variant_field]) * jitter_value
 
 
-    print(x_axis)
-    print(y_axis)
+
+    #print(x_axis)
+    #print(y_axis)
 
     
     for freq, metric_entries  in y_axis.items():
@@ -83,7 +100,7 @@ def generate_graph_generic(count, x_axis, x_axis_field, perf_metric, variant_fie
     pyplot.grid()
     pyplot.legend(loc="center left", bbox_to_anchor=(1,0.5))
     
-    description = 'Figure '+ str(figure_count) + ': '+x_axis_field +' vs '+perf_metric+' for different frequencies(SINGLE_CHANNEL_DDR3_1600).'
+    description = 'Figure '+ str(figure_count) + ': '+x_axis_field +' vs '+perf_metric+' for different '+ variant_field +'('+ invariant_value + ').'
 
     if jitter_value > 0 :
         description += ' Added jitter(' + str(jitter_value) +') to show overlapping line graphs.'
@@ -128,7 +145,7 @@ generate_graph_generic(figure_count, x_axis_cpu_freq_types, 'CPUFREQUENCY', 'SIM
 generate_graph_generic(figure_count, x_axis_cpu_freq_types, 'CPUFREQUENCY', 'CPI', 'CPUTYPE', 'MEMORYMODEL', 'SINGLE_CHANNEL_DDR3_1600',0)
 
 
-generate_graph_generic(figure_count, x_axis_cpu_freq_types, 'CPUFREQUENCY', 'SIMSECONDS', 'MEMORYMODEL', 'CPUTYPE', 'TIMING', 0.5)
+generate_graph_generic(figure_count, x_axis_cpu_freq_types, 'CPUFREQUENCY', 'SIMSECONDS', 'MEMORYMODEL', 'CPUTYPE', 'TIMING', 0.5 )
 
 generate_graph_generic(figure_count, x_axis_cpu_freq_types, 'CPUFREQUENCY', 'CPI', 'MEMORYMODEL', 'CPUTYPE', 'TIMING', 0)
 
